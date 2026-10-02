@@ -1,0 +1,6 @@
+{
+  "name": "GeoLead CNPJ — Funil de Vendas & Prospecção Off-Page",
+  "description": "Consultor de CNPJ e prospecção geolocalizada via Google Maps para identificar empresas sem site, gerar propostas comerciais personalizadas com bot Groq e monitorar envios via WhatsApp e E-mail.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

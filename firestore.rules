@@ -1,0 +1,242 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // 3. Lead Validation Blueprint
+    function isValidLead(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'companyName',
+        'niche',
+        'address',
+        'websiteStatus',
+        'funnelStage',
+        'proposalValue',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'companyName',
+        'tradeName',
+        'cnpj',
+        'niche',
+        'address',
+        'city',
+        'phone',
+        'email',
+        'responsibleName',
+        'websiteStatus',
+        'websiteUrl',
+        'googlePlaceId',
+        'rating',
+        'userRatingCount',
+        'lat',
+        'lng',
+        'funnelStage',
+        'proposalValue',
+        'proposalWhatsapp',
+        'proposalEmailSubject',
+        'proposalEmailBody',
+        'lastDispatchChannel',
+        'lastDispatchStatus',
+        'notes',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId == request.auth.uid &&
+      data.companyName is string && data.companyName.size() >= 1 && data.companyName.size() <= 200 &&
+      (!('tradeName' in data) || (data.tradeName is string && data.tradeName.size() <= 200)) &&
+      (!('cnpj' in data) || (data.cnpj is string && data.cnpj.size() <= 30)) &&
+      data.niche is string && data.niche.size() >= 1 && data.niche.size() <= 120 &&
+      data.address is string && data.address.size() >= 1 && data.address.size() <= 400 &&
+      (!('city' in data) || (data.city is string && data.city.size() <= 120)) &&
+      (!('phone' in data) || (data.phone is string && data.phone.size() <= 60)) &&
+      (!('email' in data) || (data.email is string && data.email.size() <= 160)) &&
+      (!('responsibleName' in data) || (data.responsibleName is string && data.responsibleName.size() <= 160)) &&
+      data.websiteStatus is string && data.websiteStatus.size() <= 40 &&
+      data.websiteStatus in ['no_website', 'outdated_website', 'social_only', 'active_website'] &&
+      (!('websiteUrl' in data) || (data.websiteUrl is string && data.websiteUrl.size() <= 500)) &&
+      (!('googlePlaceId' in data) || (data.googlePlaceId is string && data.googlePlaceId.size() <= 200)) &&
+      (!('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5)) &&
+      (!('userRatingCount' in data) || (data.userRatingCount is number && data.userRatingCount >= 0)) &&
+      (!('lat' in data) || (data.lat is number && data.lat >= -90 && data.lat <= 90)) &&
+      (!('lng' in data) || (data.lng is number && data.lng >= -180 && data.lng <= 180)) &&
+      data.funnelStage is string && data.funnelStage.size() <= 40 &&
+      data.funnelStage in ['extraido', 'enriquecido', 'proposta_gerada', 'proposta_enviada', 'em_negociacao', 'fechado', 'perdido'] &&
+      data.proposalValue is number && data.proposalValue >= 0 && data.proposalValue <= 10000000 &&
+      (!('proposalWhatsapp' in data) || (data.proposalWhatsapp is string && data.proposalWhatsapp.size() <= 4000)) &&
+      (!('proposalEmailSubject' in data) || (data.proposalEmailSubject is string && data.proposalEmailSubject.size() <= 300)) &&
+      (!('proposalEmailBody' in data) || (data.proposalEmailBody is string && data.proposalEmailBody.size() <= 8000)) &&
+      (!('lastDispatchChannel' in data) || (data.lastDispatchChannel is string && data.lastDispatchChannel.size() <= 20 && data.lastDispatchChannel in ['none', 'whatsapp', 'email', 'both'])) &&
+      (!('lastDispatchStatus' in data) || (data.lastDispatchStatus is string && data.lastDispatchStatus.size() <= 30 && data.lastDispatchStatus in ['pendente', 'enviado', 'visualizado', 'respondido', 'erro'])) &&
+      (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // 4. DispatchLog Validation Blueprint
+    function isValidDispatchLog(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'leadId',
+        'companyName',
+        'recipientContact',
+        'niche',
+        'channel',
+        'status',
+        'messagePreview',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'leadId',
+        'companyName',
+        'recipientName',
+        'recipientContact',
+        'niche',
+        'channel',
+        'status',
+        'messagePreview',
+        'aiModelUsed',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId == request.auth.uid &&
+      isValidId(data.leadId) &&
+      data.companyName is string && data.companyName.size() >= 1 && data.companyName.size() <= 200 &&
+      (!('recipientName' in data) || (data.recipientName is string && data.recipientName.size() <= 160)) &&
+      data.recipientContact is string && data.recipientContact.size() >= 1 && data.recipientContact.size() <= 160 &&
+      data.niche is string && data.niche.size() >= 1 && data.niche.size() <= 120 &&
+      data.channel is string && data.channel.size() <= 20 && data.channel in ['whatsapp', 'email'] &&
+      data.status is string && data.status.size() <= 30 && data.status in ['enviado', 'entregue', 'visualizado', 'respondido', 'erro'] &&
+      data.messagePreview is string && data.messagePreview.size() >= 1 && data.messagePreview.size() <= 4000 &&
+      (!('aiModelUsed' in data) || (data.aiModelUsed is string && data.aiModelUsed.size() <= 100)) &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Connection test path
+    match /test/{docId} {
+      allow get: if isSignedIn() && isValidId(docId);
+    }
+
+    // Collection: /leads/{leadId}
+    match /leads/{leadId} {
+      allow get: if isSignedIn() && isValidId(leadId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(leadId) &&
+        isValidLead(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(leadId) &&
+        isValidLead(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action 1: Funnel Stage or Dispatch Status Transition
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'funnelStage',
+            'lastDispatchChannel',
+            'lastDispatchStatus',
+            'updatedAt'
+          ]) ||
+          // Action 2: Proposal Generation Update
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'funnelStage',
+            'proposalWhatsapp',
+            'proposalEmailSubject',
+            'proposalEmailBody',
+            'proposalValue',
+            'updatedAt'
+          ]) ||
+          // Action 3: CNPJ Enrichment & Contact Info Edit
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'companyName',
+            'tradeName',
+            'cnpj',
+            'niche',
+            'address',
+            'city',
+            'phone',
+            'email',
+            'responsibleName',
+            'websiteStatus',
+            'websiteUrl',
+            'funnelStage',
+            'proposalValue',
+            'proposalWhatsapp',
+            'proposalEmailSubject',
+            'proposalEmailBody',
+            'lastDispatchChannel',
+            'lastDispatchStatus',
+            'notes',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(leadId) && existing().ownerId == request.auth.uid;
+    }
+
+    // Collection: /dispatches/{dispatchId}
+    match /dispatches/{dispatchId} {
+      allow get: if isSignedIn() && isValidId(dispatchId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(dispatchId) &&
+        isValidDispatchLog(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/leads/$(incoming().leadId)) &&
+        get(/databases/$(database)/documents/leads/$(incoming().leadId)).data.ownerId == request.auth.uid;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(dispatchId) &&
+        isValidDispatchLog(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        existing().status != 'respondido' &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().leadId == existing().leadId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action: Update dispatch delivery/response status
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(dispatchId) && existing().ownerId == request.auth.uid;
+    }
+  }
+}
